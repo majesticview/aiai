@@ -1,17 +1,21 @@
 // netlify/functions/recommend.js
 
 export default async (req) => {
+  // 1. 요청 메서드 확인
   if (req.method !== "POST") return new Response("Method Not Allowed", { status: 405 });
 
+  // 2. 환경 변수 로드 및 확인
   const apiKey = process.env.GEMINI_API_KEY;
-  // 추가: TMDB API 키 가져오기
-  const tmdbApiKey = process.env.TMDB_API_KEY; 
+  const tmdbApiKey = process.env.TMDB_API_KEY; // TMDB 키 확인
+
+  console.log("Function Start. Gemini Key Exists:", !!apiKey, "TMDB Key Exists:", !!tmdbApiKey);
 
   if (!apiKey) {
-    console.error("API Key missing");
+    console.error("Critical: Gemini API Key is missing.");
     return new Response("Missing GEMINI_API_KEY", { status: 500 });
   }
 
+  // 3. Body 파싱
   let body;
   try {
     body = await req.json();
@@ -22,18 +26,17 @@ export default async (req) => {
   const mode = body.mode === "movie" ? "movie" : body.mode === "book" ? "book" : null;
   if (!mode) return new Response("mode must be 'movie' or 'book'", { status: 400 });
 
+  // 사용자 입력 정리
   const moodGenre = (body.moodGenre ?? "").trim();
   const theme = (body.theme ?? "").trim();
   const watched = (body.watched ?? "").trim();
   const creatorName = (body.creatorName ?? "").trim();
   const constraints = (body.constraints ?? "").trim();
 
-  // 링크 생성 헬퍼
+  // URL 생성 헬퍼
   const makeExternalUrl = (query) => {
     if (!query) return "";
-    if (mode === "movie") {
-      return `https://www.youtube.com/results?search_query=${encodeURIComponent(query + " 예고편")}`;
-    }
+    if (mode === "movie") return `https://www.youtube.com/results?search_query=${encodeURIComponent(query + " 예고편")}`;
     return `https://search.kyobobook.co.kr/search?keyword=${encodeURIComponent(query)}`;
   };
 
@@ -42,32 +45,30 @@ export default async (req) => {
     return `https://www.google.com/search?q=${encodeURIComponent(query)}`;
   };
 
-  // ---------------------------------------------------------
-  // [추가된 함수] TMDB에서 포스터 이미지 URL 가져오기
-  // ---------------------------------------------------------
+  // TMDB 포스터 함수 (에러 발생 시 null 반환하여 전체 로직 보호)
   const fetchTmdbPoster = async (title) => {
     if (!tmdbApiKey || !title) return null;
-
     try {
+      // 쿼리 인코딩 확실하게 적용
       const url = `https://api.themoviedb.org/3/search/movie?api_key=${tmdbApiKey}&query=${encodeURIComponent(title)}&language=ko-KR&page=1`;
       const res = await fetch(url);
+      if (!res.ok) return null; // 응답이 200이 아니면 무시
       const data = await res.json();
-
       if (data.results && data.results.length > 0) {
         const posterPath = data.results[0].poster_path;
-        // w500 사이즈의 이미지 URL 반환
         return posterPath ? `https://image.tmdb.org/t/p/w500${posterPath}` : null;
       }
     } catch (err) {
-      console.error(`TMDB Error for ${title}:`, err);
+      console.error(`TMDB Error for ${title}:`, err); // 로그만 남기고 null 반환
+      return null;
     }
     return null;
   };
-  // ---------------------------------------------------------
 
   const watchedLabel = mode === "movie" ? "이전에 봤던 영화" : "이전에 읽었던 책";
   const creatorLabel = mode === "movie" ? "감독" : "저자";
 
+  // 프롬프트 구성
   const prompt = `
 너는 ${mode === "movie" ? "영화" : "도서"} 추천 전문가다.
 사용자의 취향에 맞춰 **실존하는 작품** 3개를 추천해줘.
@@ -96,8 +97,10 @@ export default async (req) => {
 `.trim();
 
   try {
-    const model = "models/gemini-2.5-flash";
+    const model = "models/gemini-2.5-flash"; // 모델명 유지
     const endpoint = `https://generativelanguage.googleapis.com/v1beta/${model}:generateContent?key=${apiKey}`;
+
+    console.log("Sending request to Gemini..."); // 로그 추가
 
     const res = await fetch(endpoint, {
       method: "POST",
@@ -126,12 +129,12 @@ export default async (req) => {
     const json = await res.json();
     let rawText = json?.candidates?.[0]?.content?.parts?.[0]?.text || "[]";
     
-    // 마크다운 제거 및 줄바꿈 처리
+    // JSON 클리닝
     rawText = rawText.replace(/```json/g, "").replace(/```/g, "");
     rawText = rawText.replace(/\n/g, " ");
     rawText = rawText.trim();
 
-    console.log("AI Response (Cleaned):", rawText); 
+    console.log("Gemini Response Received."); // 로그 추가
 
     let recommendations = [];
     try {
@@ -141,7 +144,7 @@ export default async (req) => {
       recommendations = [];
     }
 
-    // 1차적으로 아이템 매핑
+    // 1차 매핑
     let items = recommendations.map((item) => {
       const q = [item.title, item.creator].filter(Boolean).join(" ").trim();
       return {
@@ -151,7 +154,6 @@ export default async (req) => {
         reason: item.reason || "추천 작품입니다.",
         externalUrl: makeExternalUrl(q),
         detailUrl: makeDetailUrl(q),
-        // 기본적으로 posterUrl은 null로 시작
         posterUrl: null 
       };
     });
@@ -160,22 +162,19 @@ export default async (req) => {
       throw new Error("No items returned from AI");
     }
 
-    // ---------------------------------------------------------
-    // [추가된 로직] 모드가 영화이고 TMDB 키가 있으면 포스터 검색 병렬 실행
-    // ---------------------------------------------------------
+    // TMDB 포스터 가져오기 (병렬 처리)
     if (mode === "movie" && tmdbApiKey) {
-      console.log("🎬 Fetching posters from TMDB...");
-      
-      // Promise.all을 사용하여 병렬로 이미지를 가져옴 (속도 저하 최소화)
+      console.log("Fetching TMDB posters...");
+      // Promise.allSettled를 쓰면 하나가 실패해도 나머지는 살릴 수 있지만, 
+      // 여기선 fetchTmdbPoster 내부에서 catch하므로 Promise.all도 안전함
       items = await Promise.all(items.map(async (item) => {
         const posterUrl = await fetchTmdbPoster(item.title);
-        return {
-          ...item,
-          posterUrl: posterUrl // 찾았으면 URL, 없으면 null
-        };
+        return { ...item, posterUrl };
       }));
+      console.log("TMDB fetch complete.");
+    } else {
+      console.log("Skipping TMDB (Mode is book or API Key missing)");
     }
-    // ---------------------------------------------------------
 
     return new Response(JSON.stringify({ mode, items }), {
       status: 200,
@@ -195,11 +194,12 @@ export default async (req) => {
       year: "",
       reason: "AI 응답 지연으로 기본 추천을 표시합니다.",
       externalUrl: makeExternalUrl(title),
-      detailUrl: makeDetailUrl(title)
-      // 폴백의 경우 이미지를 따로 가져오지 않음 (필요하면 여기도 추가 가능)
+      detailUrl: makeDetailUrl(title),
+      posterUrl: null
     }));
 
-    return new Response(JSON.stringify({ mode, items: fallbackItems, note: "fallback" }), {
+    // 에러 발생 시에도 200 OK로 폴백 데이터를 보냄
+    return new Response(JSON.stringify({ mode, items: fallbackItems, note: "fallback", error: error.toString() }), {
       status: 200,
       headers: { "Content-Type": "application/json; charset=utf-8" },
     });
