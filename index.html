@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>AI 콘텐츠 추천 (영화/도서)</title>
+  <link rel="stylesheet" href="./styles.css" />
+</head>
+<body>
+  <main class="container">
+    <div class="landing" id="landing">
+      <header class="header">
+        <h1>AI 콘텐츠 추천</h1>
+        <p class="sub">영화 또는 도서를 골라 2~3개 추천을 받아보세요.</p>
+        <!-- 🔥 테스트 버튼 추가 -->
+        <button id="btnTestKeys" class="btn-test" type="button">🔧 API 키 테스트</button>
+      </header>
+
+      <section class="card">
+        <div class="mode" aria-label="추천 종류 선택">
+          <button id="btnMovie" class="btn btn-primary" type="button">영화 추천 받으러 가기</button>
+          <button id="btnBook" class="btn btn-secondary" type="button">도서 추천 받으러 가기</button>
+        </div>
+
+        <form id="form" class="form hidden">
+          <div class="pill" id="modePill">선택됨: -</div>
+
+          <label class="field">
+            <span class="label">1) 장르/분위기</span>
+            <input id="moodGenre" type="text" placeholder="예: 힐링, 다크, 코미디, 감성, 긴장감, 따뜻한" />
+          </label>
+
+          <label class="field">
+            <span class="label">2) 주제</span>
+            <input id="theme" type="text" placeholder="예: 성장, 가족, 복수, 시간여행, 우정, 사회고발" />
+          </label>
+
+          <label class="field" for="watched">
+            <span class="label" id="watchedLabel">3) (선택) 이전에 봤던 영화</span>
+            <input id="watched" type="text" placeholder="예: 인터스텔라, 라라랜드, 올드보이" />
+          </label>
+
+          <label class="field" for="creatorName">
+            <span class="label" id="creatorLabel">4) (선택) 감독</span>
+            <input id="creatorName" type="text" placeholder="예: 크리스토퍼 놀란, 봉준호, 고레에다 히로카즈" />
+          </label>
+
+          <label class="field">
+            <span class="label">5) 자유 조건</span>
+            <textarea id="constraints" rows="3" placeholder="예: 2시간 이내, 잔인한 장면 X, 가족과 같이, 결말 해피엔딩 선호"></textarea>
+          </label>
+
+          <div class="actions">
+            <button id="btnSubmit" class="btn btn-primary" type="submit">AI에게 추천 요청하기</button>
+            <button id="btnReset" class="btn btn-ghost" type="button">다시 선택</button>
+          </div>
+
+          <div id="status" class="status" aria-live="polite"></div>
+        </form>
+      </section>
+
+      <section class="card hidden" id="resultCard">
+        <div class="resultHeader">
+          <h2>추천 목록</h2>
+          <button id="btnRetry" class="btn btn-secondary" type="button">다시 추천받기</button>
+        </div>
+        <div id="results" class="results"></div>
+      </section>
+    </div>
+  </main>
+
+  <script src="./app.js"></script>
+</body>
+</html>
