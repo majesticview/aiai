@@ -569,3 +569,33 @@ body.is-active .landing {
   color: var(--primary);
   transform: translateY(-1px);
 }
+
+/* [추가] 포스터 없는 텍스트 전용 아이템 스타일 */
+.item-text-only {
+  padding: 30px; /* 텍스트만 있을 때는 여백을 조금 더 줌 */
+}
+
+.item-text-only .info-wrapper {
+  text-align: left; /* 텍스트 왼쪽 정렬 유지 */
+}
+
+.skeleton-item.no-poster {
+  padding: 30px;
+}
+
+/* 모바일에서도 도서는 텍스트가 꽉 차게 변경 */
+@media (max-width: 768px) {
+  .item-text-only {
+    text-align: left;
+    align-items: flex-start; /* 중앙 정렬 해제 */
+  }
+  
+  .item-text-only .itemTop {
+    align-items: flex-start;
+    text-align: left;
+  }
+  
+  .item-text-only .links {
+    justify-content: flex-start;
+  }
+}

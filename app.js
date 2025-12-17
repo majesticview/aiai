@@ -99,9 +99,10 @@ function escapeHtml(str) {
 }
 
 function renderSkeleton() {
+  const isMovie = mode === "movie";
   const skeletons = Array(3).fill(0).map(() => `
-    <article class="skeleton-item">
-      <div class="skeleton-poster"></div>
+    <article class="skeleton-item ${isMovie ? '' : 'no-poster'}">
+      ${isMovie ? '<div class="skeleton-poster"></div>' : ''}
       <div class="skeleton-info">
         <div class="skeleton-line" style="width: 70%;"></div>
         <div class="skeleton-line" style="width: 45%;"></div>
@@ -148,37 +149,34 @@ function renderResults(payload) {
     return;
   }
 
+  const isMovie = mode === "movie";
+
   resultsEl.innerHTML = items.map((it, idx) => {
     const title = escapeHtml(it.title ?? `추천 ${idx + 1}`);
     const creator = escapeHtml(it.creator ?? "");
     const year = escapeHtml(it.year ?? "");
     const reason = escapeHtml(it.reason ?? "");
     
-    let imageHtml = "";
-    const iconChar = mode === "movie" ? "🎬" : "📚";
-    
-    if (it.posterUrl) {
-      imageHtml = `
-        <img 
-          src="${it.posterUrl}" 
-          alt="${title}" 
-          class="poster" 
-          loading="lazy"
-          onerror="console.error('이미지 로딩 실패:', this.src); this.style.display='none'; this.nextElementSibling.style.display='flex';"
-        />
-        <div class="poster-placeholder" style="display: none;">${iconChar}</div>
-      `;
-    } else {
-      imageHtml = `<div class="poster-placeholder">${iconChar}</div>`;
+    // 영화일 때만 포스터 HTML 생성
+    let posterHtml = "";
+    if (isMovie) {
+      if (it.posterUrl) {
+        posterHtml = `
+          <div class="poster-wrapper">
+            <img src="${it.posterUrl}" alt="${title}" class="poster" loading="lazy" 
+                 onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';" />
+            <div class="poster-placeholder" style="display: none;">🎬</div>
+          </div>`;
+      } else {
+        posterHtml = `<div class="poster-wrapper"><div class="poster-placeholder">🎬</div></div>`;
+      }
     }
 
     const linksHtml = generateLinks(it.title || "");
 
     return `
-      <article class="item">
-        <div class="poster-wrapper">
-          ${imageHtml}
-        </div>
+      <article class="item ${isMovie ? '' : 'item-text-only'}">
+        ${posterHtml}
         <div class="info-wrapper">
           <div class="itemTop">
             <h3 class="title">${title}</h3>
@@ -194,14 +192,7 @@ function renderResults(payload) {
   }).join("");
 
   resultCard.classList.remove("hidden");
-  
-  setTimeout(() => {
-    const images = resultsEl.querySelectorAll('img.poster');
-    const loaded = Array.from(images).filter(img => img.complete && img.naturalHeight > 0).length;
-    console.log(`📊 이미지 로딩 완료: ${loaded}/${images.length}`);
-  }, 1000);
 }
-
 async function requestRecommendations() {
   if (!mode) {
     statusEl.textContent = "⚠️ 먼저 영화/도서 중 하나를 선택해주세요.";
