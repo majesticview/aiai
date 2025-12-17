@@ -97,7 +97,7 @@ export default async (req) => {
 `.trim();
 
   try {
-    const model = "models/gemini-1.5-flash"; // 모델명 유지
+    const model = "models/gemini-1.5-pro"; // 모델명 유지
     const endpoint = `https://generativelanguage.googleapis.com/v1beta/${model}:generateContent?key=${apiKey}`;
 
     console.log("Sending request to Gemini..."); // 로그 추가
