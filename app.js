@@ -2,7 +2,7 @@ const el = (id) => document.getElementById(id);
 
 const btnMovie = el("btnMovie");
 const btnBook = el("btnBook");
-const btnTestKeys = el("btnTestKeys");
+// btnTestKeys 삭제됨
 const form = el("form");
 const modePill = el("modePill");
 const statusEl = el("status");
@@ -21,37 +21,7 @@ const resultsEl = el("results");
 
 let mode = null;
 
-// 🔥 API 키 테스트 기능
-btnTestKeys.addEventListener("click", async () => {
-  statusEl.textContent = "🔧 API 키 테스트 중...";
-  
-  try {
-    const res = await fetch("/.netlify/functions/test-keys");
-    const data = await res.json();
-    
-    console.log("=".repeat(50));
-    console.log("🔑 API 키 테스트 결과:");
-    console.log(JSON.stringify(data, null, 2));
-    console.log("=".repeat(50));
-    
-    const geminiStatus = data.gemini.exists 
-      ? (data.gemini.apiTest?.ok ? "✅ 정상" : "❌ 오류")
-      : "❌ 없음";
-    
-    const tmdbStatus = data.tmdb.exists ? "✅ 있음" : "⚠️ 없음 (선택사항)";
-    
-    alert(`API 키 테스트 결과:\n\nGemini: ${geminiStatus}\nTMDB: ${tmdbStatus}\n\n자세한 내용은 콘솔을 확인하세요 (F12)`);
-    
-    statusEl.textContent = data.gemini.apiTest?.ok 
-      ? "✅ API 키가 정상적으로 설정되었습니다!"
-      : "❌ API 키 설정을 확인해주세요.";
-      
-  } catch (err) {
-    console.error("테스트 오류:", err);
-    alert(`테스트 실패: ${err.message}`);
-    statusEl.textContent = "❌ 테스트 실패";
-  }
-});
+// 🔥 API 키 테스트 기능 삭제됨
 
 function setMode(next) {
   mode = next;
